@@ -1,3 +1,7 @@
+## 2.0.3
+
+* Updated all packages and bumped dart/flutter versions
+
 ## 2.0.2
 
 * [**Issue #4**](https://github.com/gabrielginter/flutter-upchunk/issues/4): Ability to clarify the chunk in which to start the upload using `chunkStart` in the constructor.

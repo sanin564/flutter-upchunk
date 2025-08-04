@@ -5,7 +5,7 @@ Flutter UpChunk is a simple port of the JS library https://github.com/muxinc/upc
 ## Installation
 
 Add the package to the `dependencies` section in `pubspec.yaml`:
- - `flutter_upchunk: ^2.0.2` (or latest release)
+ - `flutter_upchunk: ^2.0.3` (or latest release)
 
 ## Usage
 
