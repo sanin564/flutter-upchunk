@@ -53,7 +53,12 @@ class Upchunk {
   }
 
   void _initializeDio() {
-    dio = Dio(BaseOptions(receiveTimeout: const Duration(seconds: 5)));
+    dio = Dio(
+      BaseOptions(
+        connectTimeout: const Duration(seconds: 10),
+        receiveTimeout: const Duration(seconds: 5),
+      ),
+    );
   }
 
   Future<void> initialize() async {

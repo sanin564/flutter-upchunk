@@ -46,7 +46,6 @@ class UpChunk {
   int _chunkByteSize = 0;
   String? _fileMimeType;
   int _totalChunks = 0;
-  int _attemptCount = 0;
   bool _offline = false;
   bool _uploadFailed = false;
 
@@ -161,27 +160,6 @@ class UpChunk {
     }
   }
 
-  /// Called on net failure. If retry [_attemptCount] < [attempts], retry after [delayBeforeAttempt]
-  void _manageRetries() {
-    if (_attemptCount < attempts) {
-      _attemptCount = _attemptCount + 1;
-      Future.delayed(
-        Duration(seconds: delayBeforeAttempt),
-        () => _sendChunks(),
-      );
-
-      return;
-    }
-
-    _uploadFailed = true;
-
-    onError?.call(
-      'An error occurred uploading chunk $_chunkCount. No more retries, stopping upload',
-      _chunkCount,
-      _attemptCount,
-    );
-  }
-
   /// Manages the whole upload by calling [_getChunk] and [_sendChunk]
   void _sendChunks() {
     if (_uploadFailed || _offline) return;
@@ -191,7 +169,6 @@ class UpChunk {
       if (successfulChunkUploadCodes.contains(res.statusCode)) {
         _chunkCount++;
         if (_chunkCount < _totalChunks) {
-          _attemptCount = 0;
           _sendChunks();
         } else {
           onSuccess?.call();
@@ -205,10 +182,7 @@ class UpChunk {
           }
           onProgress!(percentProgress);
         }
-      } else {
-        if (_offline) return;
-        _manageRetries();
       }
-    }, onError: (dynamic err) => _manageRetries());
+    });
   }
 }
