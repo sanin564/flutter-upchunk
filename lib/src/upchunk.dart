@@ -10,6 +10,7 @@ class Upchunk {
     required this.file,
     this.maxRetries = 5,
     int preferredChunkSize = 5,
+    this.onError,
   }) : preferredChunkSize = preferredChunkSize * 1024 * 1024;
 
   final Uri endPoint;
@@ -23,6 +24,8 @@ class Upchunk {
   late final String? mimeType;
 
   final List<Chunk> chunks = [];
+
+  final void Function(dynamic error, dynamic trace)? onError;
 
   Future<void> _initializeValues() async {
     fileSize = await file.length();
@@ -62,10 +65,6 @@ class Upchunk {
 
   Future<bool> startUpload() async {
     while (chunks.isNotEmpty) {
-      if (chunks.first.isDirty) {
-        break;
-      }
-
       try {
         final res = await dio.putUri<void>(
           endPoint,
@@ -82,14 +81,26 @@ class Upchunk {
         if (Helpers.successCodes.contains(res.statusCode)) {
           chunks.removeAt(0);
         } else {
-          await chunks.first.setupRetry();
+          throw res;
         }
-      } catch (_) {
-        await chunks.first.setupRetry();
+      } catch (error, stackTrace) {
+        if (!chunks.first.isDirty) {
+          await chunks.first.setupRetry();
+        } else {
+          _handleError(error, stackTrace);
+        }
       }
     }
 
     return chunks.isEmpty;
+  }
+
+  void _handleError(dynamic error, dynamic stack) {
+    if (onError != null) {
+      onError!(error, stack);
+    } else {
+      Error.throwWithStackTrace(error, stack);
+    }
   }
 }
 
@@ -104,7 +115,7 @@ class Chunk {
   Stream<Uint8List> get data => root.file.openRead(start, end);
 
   int retry = 0;
-  bool get isDirty => retry == root.maxRetries;
+  bool get isDirty => retry >= root.maxRetries;
 
   Future<void> setupRetry() {
     retry++;
