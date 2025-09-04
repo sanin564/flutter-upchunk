@@ -106,6 +106,11 @@ class UpChunk with Resumable {
                   'bytes ${chunks.first.start}-${chunks.first.end - 1}/$fileSize',
             },
           ),
+          onSendProgress: (sent, _) {
+            final pending = chunks.map((e) => e.size).fold(0, (i, e) => i + e);
+            final progress = 1 - ((pending - sent) / fileSize);
+            onProgress?.call(progress * 100);
+          },
           cancelToken: cancelToken,
         );
         if (Helpers.successCodes.contains(res.statusCode)) {
