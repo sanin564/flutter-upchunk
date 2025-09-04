@@ -14,6 +14,7 @@ class Upchunk with Resumable {
     int preferredChunkSize = 5,
     this.onError,
     this.onSuccess,
+    this.onProgress,
   }) : preferredChunkSize = preferredChunkSize * 1024 * 1024;
 
   final Uri endPoint;
@@ -31,6 +32,7 @@ class Upchunk with Resumable {
 
   final void Function(dynamic error, dynamic trace)? onError;
   final VoidCallback? onSuccess;
+  final ValueChanged<double>? onProgress;
 
   Future<void> _initializeValues() async {
     fileSize = await file.length();
