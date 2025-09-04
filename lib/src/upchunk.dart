@@ -166,7 +166,7 @@ class Chunk {
   Future<void> setupRetry() {
     retry++;
 
-    return Future.delayed(Duration(seconds: retry * 2));
+    return Future.delayed(Duration(seconds: (retry * 2).clamp(2, 10)));
   }
 }
 
