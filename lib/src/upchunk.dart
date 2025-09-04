@@ -30,7 +30,7 @@ class UpChunk with Resumable {
 
   final List<Chunk> chunks = [];
 
-  final void Function(dynamic error, dynamic trace)? onError;
+  final void Function(Object error, StackTrace trace)? onError;
   final VoidCallback? onSuccess;
   final ValueChanged<double>? onProgress;
 
@@ -41,7 +41,7 @@ class UpChunk with Resumable {
 
   Future<void> _initializeMimeType() async {
     try {
-      mimeType = await lookupMimeType(file.path);
+      mimeType = lookupMimeType(file.path);
     } catch (_) {
       mimeType = null;
     }
@@ -127,7 +127,7 @@ class UpChunk with Resumable {
     if (chunks.isEmpty) onSuccess?.call();
   }
 
-  void _handleError(dynamic error, dynamic stack) {
+  void _handleError(Object error, StackTrace stack) {
     if (onError != null) {
       onError!(error, stack);
     } else {
