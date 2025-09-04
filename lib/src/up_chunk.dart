@@ -147,6 +147,8 @@ class UpChunk with Resumable {
   void pause() {
     super.pause();
 
+    if (isPaused) return;
+
     cancelToken?.cancel();
     cancelToken = null;
   }
@@ -154,6 +156,8 @@ class UpChunk with Resumable {
   @override
   void resume() {
     super.resume();
+
+    if (!isPaused) return;
 
     cancelToken = CancelToken();
     startUpload();
