@@ -11,9 +11,6 @@ class UpChunk {
   /// HTTP response codes implying the PUT method has been successful
   final successfulChunkUploadCodes = const [200, 201, 202, 204, 308];
 
-  /// HTTP response codes implying a chunk may be retried
-  final temporaryErrorCodes = const [408, 502, 503, 504];
-
   /// Upload url as [String], required
   final String endPoint;
 
@@ -208,18 +205,9 @@ class UpChunk {
           }
           onProgress!(percentProgress);
         }
-      } else if (temporaryErrorCodes.contains(res.statusCode)) {
-        if (_offline) return;
-
-        _manageRetries();
       } else {
-        _uploadFailed = true;
-
-        onError?.call(
-          'Server responded with ${res.statusCode}. Stopping upload.: ${res.data}',
-          _chunkCount,
-          _attemptCount,
-        );
+        if (_offline) return;
+        _manageRetries();
       }
     }, onError: (dynamic err) => _manageRetries());
   }
