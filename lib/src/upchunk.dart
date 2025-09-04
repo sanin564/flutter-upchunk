@@ -7,12 +7,14 @@ class Upchunk {
   Upchunk({
     required this.endPoint,
     required this.file,
+    this.maxRetries = 5,
     int preferredChunkSize = 5,
   }) : preferredChunkSize = preferredChunkSize * 1024 * 1024;
 
   final Uri endPoint;
   final XFile file;
   final int preferredChunkSize;
+  final int maxRetries;
 
   late final Dio dio;
   late final int fileSize;
@@ -36,7 +38,7 @@ class Upchunk {
               ? start + preferredChunkSize
               : fileSize;
 
-      chunks.add(Chunk(file, start: start, end: end));
+      chunks.add(Chunk(this, start: start, end: end));
     }
   }
 
@@ -46,17 +48,41 @@ class Upchunk {
     _initializeChunks();
   }
 
-  Future<void> startUpload() async {}
+  Future<void> startUpload() async {
+    while (chunks.isNotEmpty) {
+      if (chunks.first.isDirty) {
+        break;
+      }
+
+      try {
+        final res = await dio.putUri<void>(endPoint, data: chunks.first.data);
+        if (Helpers.successCodes.contains(res.statusCode)) {
+          chunks.removeAt(0);
+        } else {
+          chunks.first.setupRetry();
+        }
+      } catch (_) {
+        chunks.first.setupRetry();
+      }
+    }
+  }
 }
 
 class Chunk {
-  Chunk(this.file, {required this.start, required this.end});
+  Chunk(this.root, {required this.start, required this.end});
 
   final int start;
   final int end;
-  final XFile file;
+  final Upchunk root;
 
   int get size => end - start;
+  Stream<Uint8List> get data => root.file.openRead(start, end);
 
-  Stream<Uint8List> get data => file.openRead(start, end);
+  int retry = 0;
+  void setupRetry() => retry++;
+  bool get isDirty => retry == root.maxRetries;
+}
+
+class Helpers {
+  static const successCodes = [200, 201, 202, 204, 308];
 }
