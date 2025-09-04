@@ -22,7 +22,7 @@ class MyApp extends StatelessWidget {
 }
 
 class MyHomePage extends StatefulWidget {
-  MyHomePage({ this.title = ''});
+  MyHomePage({this.title = ''});
 
   final String title;
 
@@ -63,15 +63,16 @@ class _MyHomePageState extends State<MyHomePage> {
       },
       onError: (String message, int chunk, int attempts) {
         setState(() {
-          _errorMessage = 'UpChunk error 💥 🙀:\n'
-            ' - Message: $message\n'
-            ' - Chunk: $chunk\n'
-            ' - Attempts: $attempts';
+          _errorMessage =
+              'UpChunk error 💥 🙀:\n'
+              ' - Message: $message\n'
+              ' - Chunk: $chunk\n'
+              ' - Attempts: $attempts';
         });
       },
       onSuccess: () {
         setState(() {
-        _uploadComplete = true;
+          _uploadComplete = true;
         });
       },
     );
@@ -80,19 +81,14 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title),
-      ),
+      appBar: AppBar(title: Text(widget.title)),
       body: Center(
         child: Column(
           children: [
             if (!_uploadComplete)
               Text(
                 'Uploaded: $_progress%',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.normal,
-                ),
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.normal),
               ),
 
             if (_uploadComplete)

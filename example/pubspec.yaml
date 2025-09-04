@@ -1,5 +1,6 @@
 name: example
 description: Example project for flutter_upchunk.
+publish_to: none
 
 version: 1.0.0+5
 
