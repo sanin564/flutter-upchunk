@@ -9,7 +9,6 @@ class Upchunk {
     required this.endPoint,
     required this.file,
     this.maxRetries = 5,
-    this.delayBeforeRetry = 1,
     int preferredChunkSize = 5,
   }) : preferredChunkSize = preferredChunkSize * 1024 * 1024;
 
@@ -17,7 +16,6 @@ class Upchunk {
   final XFile file;
   final int preferredChunkSize;
   final int maxRetries;
-  final int delayBeforeRetry;
 
   late final Dio dio;
   late final int fileSize;
@@ -109,10 +107,9 @@ class Chunk {
   bool get isDirty => retry == root.maxRetries;
 
   Future<void> setupRetry() {
-    return Future.delayed(
-      Duration(seconds: root.delayBeforeRetry),
-      () => retry++,
-    );
+    retry++;
+
+    return Future.delayed(Duration(seconds: retry * 2));
   }
 }
 
