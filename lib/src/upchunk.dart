@@ -6,8 +6,8 @@ import 'package:flutter/widgets.dart';
 import 'package:internet_connection_checker_plus/internet_connection_checker_plus.dart';
 import 'package:mime/mime.dart';
 
-class Upchunk with Resumable {
-  Upchunk({
+class UpChunk with Resumable {
+  UpChunk({
     required this.endPoint,
     required this.file,
     this.maxRetries = 5,
@@ -157,7 +157,7 @@ class Chunk {
 
   final int start;
   final int end;
-  final Upchunk root;
+  final UpChunk root;
 
   int get size => end - start;
   Stream<Uint8List> get data => root.file.openRead(start, end);
