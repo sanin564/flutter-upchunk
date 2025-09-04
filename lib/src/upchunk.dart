@@ -66,6 +66,8 @@ class UpChunk with Resumable {
       BaseOptions(
         connectTimeout: const Duration(seconds: 10),
         receiveTimeout: const Duration(seconds: 5),
+        validateStatus: (_) => true,
+        followRedirects: false,
       ),
     );
   }
@@ -120,6 +122,7 @@ class UpChunk with Resumable {
           await chunks.first.setupRetry();
         } else {
           _handleError(error, stackTrace);
+          return;
         }
       }
     }
@@ -168,7 +171,7 @@ class Chunk {
   Future<void> setupRetry() {
     retry++;
 
-    return Future.delayed(Duration(seconds: (retry * 2).clamp(2, 10)));
+    return Future.delayed(const Duration(seconds: 1));
   }
 }
 
