@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:cross_file/cross_file.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/widgets.dart';
+import 'package:internet_connection_checker_plus/internet_connection_checker_plus.dart';
 import 'package:mime/mime.dart';
 
 class Upchunk with Resumable {
@@ -67,11 +68,22 @@ class Upchunk with Resumable {
     );
   }
 
+  void _initializeNetworkChecker() {
+    InternetConnection().onStatusChange.listen((status) {
+      if (status == InternetStatus.connected) {
+        resume();
+      } else {
+        pause();
+      }
+    });
+  }
+
   Future<void> initialize() async {
     await _initializeValues();
     await _initializeMimeType();
     _initializeChunks();
     _initializeDio();
+    _initializeNetworkChecker();
   }
 
   Future<void> startUpload() async {
@@ -171,6 +183,8 @@ mixin Resumable {
 
   @mustCallSuper
   void pause() {
+    if (isPaused) return;
+
     isPaused = true;
   }
 
