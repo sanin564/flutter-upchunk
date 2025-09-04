@@ -62,7 +62,7 @@ class Upchunk {
     _initializeDio();
   }
 
-  Future<void> startUpload() async {
+  Future<bool> startUpload() async {
     while (chunks.isNotEmpty) {
       if (chunks.first.isDirty) {
         break;
@@ -90,6 +90,8 @@ class Upchunk {
         await chunks.first.setupRetry();
       }
     }
+
+    return chunks.isEmpty;
   }
 }
 
