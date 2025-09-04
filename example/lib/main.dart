@@ -54,22 +54,14 @@ class _MyHomePageState extends State<MyHomePage> {
     _errorMessage = '';
 
     UpChunk(
-      endPoint: _endPoint,
+      endPoint: Uri.parse(_endPoint),
       file: fileToUpload,
       onProgress: (double progress) {
         setState(() {
           _progress = progress.ceil();
         });
       },
-      onError: (String message, int chunk, int attempts) {
-        setState(() {
-          _errorMessage =
-              'UpChunk error 💥 🙀:\n'
-              ' - Message: $message\n'
-              ' - Chunk: $chunk\n'
-              ' - Attempts: $attempts';
-        });
-      },
+      onError: (err, trace) {},
       onSuccess: () {
         setState(() {
           _uploadComplete = true;
