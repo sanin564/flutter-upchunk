@@ -11,7 +11,7 @@ class UpChunk with Resumable {
     required this.endPoint,
     required this.file,
     this.maxRetries = 5,
-    int preferredChunkSize = 5,
+    int preferredChunkSize = 2,
     this.onError,
     this.onSuccess,
     this.onProgress,
