@@ -2,15 +2,17 @@ import 'dart:typed_data';
 
 import 'package:cross_file/cross_file.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/widgets.dart';
 import 'package:mime/mime.dart';
 
-class Upchunk {
+class Upchunk with Resumable {
   Upchunk({
     required this.endPoint,
     required this.file,
     this.maxRetries = 5,
     int preferredChunkSize = 5,
     this.onError,
+    this.onSuccess,
   }) : preferredChunkSize = preferredChunkSize * 1024 * 1024;
 
   final Uri endPoint;
@@ -22,10 +24,12 @@ class Upchunk {
   late final int fileSize;
   late final int numberOfChunks;
   late final String? mimeType;
+  CancelToken? cancelToken;
 
   final List<Chunk> chunks = [];
 
   final void Function(dynamic error, dynamic trace)? onError;
+  final VoidCallback? onSuccess;
 
   Future<void> _initializeValues() async {
     fileSize = await file.length();
@@ -53,6 +57,8 @@ class Upchunk {
   }
 
   void _initializeDio() {
+    cancelToken = CancelToken();
+
     dio = Dio(
       BaseOptions(
         connectTimeout: const Duration(seconds: 10),
@@ -68,7 +74,9 @@ class Upchunk {
     _initializeDio();
   }
 
-  Future<bool> startUpload() async {
+  Future<void> startUpload() async {
+    if (isPaused) return;
+
     while (chunks.isNotEmpty) {
       try {
         final res = await dio.putUri<void>(
@@ -82,6 +90,7 @@ class Upchunk {
                   'bytes ${chunks.first.start}-${chunks.first.end - 1}/$fileSize',
             },
           ),
+          cancelToken: cancelToken,
         );
         if (Helpers.successCodes.contains(res.statusCode)) {
           chunks.removeAt(0);
@@ -89,6 +98,10 @@ class Upchunk {
           throw res;
         }
       } catch (error, stackTrace) {
+        if (error is DioException && error.type == DioExceptionType.cancel) {
+          return;
+        }
+
         if (!chunks.first.isDirty) {
           await chunks.first.setupRetry();
         } else {
@@ -97,7 +110,7 @@ class Upchunk {
       }
     }
 
-    return chunks.isEmpty;
+    if (chunks.isEmpty) onSuccess?.call();
   }
 
   void _handleError(dynamic error, dynamic stack) {
@@ -106,6 +119,22 @@ class Upchunk {
     } else {
       Error.throwWithStackTrace(error, stack);
     }
+  }
+
+  @override
+  void pause() {
+    super.pause();
+
+    cancelToken?.cancel();
+    cancelToken = null;
+  }
+
+  @override
+  void resume() {
+    super.resume();
+
+    cancelToken = CancelToken();
+    startUpload();
   }
 }
 
@@ -135,4 +164,20 @@ class Helpers {
   static const successCodes = [200, 201, 202, 204, 308];
   static const defaultContentType = 'application/octet-stream';
   static const contentRangeHeader = 'content-range';
+}
+
+mixin Resumable {
+  bool isPaused = false;
+
+  @mustCallSuper
+  void pause() {
+    isPaused = true;
+  }
+
+  @mustCallSuper
+  void resume() {
+    if (!isPaused) return;
+
+    isPaused = false;
+  }
 }
