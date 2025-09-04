@@ -9,6 +9,7 @@ class Upchunk {
     required this.endPoint,
     required this.file,
     this.maxRetries = 5,
+    this.delayBeforeRetry = 1,
     int preferredChunkSize = 5,
   }) : preferredChunkSize = preferredChunkSize * 1024 * 1024;
 
@@ -16,6 +17,7 @@ class Upchunk {
   final XFile file;
   final int preferredChunkSize;
   final int maxRetries;
+  final int delayBeforeRetry;
 
   late final Dio dio;
   late final int fileSize;
@@ -82,10 +84,10 @@ class Upchunk {
         if (Helpers.successCodes.contains(res.statusCode)) {
           chunks.removeAt(0);
         } else {
-          chunks.first.setupRetry();
+          await chunks.first.setupRetry();
         }
       } catch (_) {
-        chunks.first.setupRetry();
+        await chunks.first.setupRetry();
       }
     }
   }
@@ -102,8 +104,14 @@ class Chunk {
   Stream<Uint8List> get data => root.file.openRead(start, end);
 
   int retry = 0;
-  void setupRetry() => retry++;
   bool get isDirty => retry == root.maxRetries;
+
+  Future<void> setupRetry() {
+    return Future.delayed(
+      Duration(seconds: root.delayBeforeRetry),
+      () => retry++,
+    );
+  }
 }
 
 class Helpers {
