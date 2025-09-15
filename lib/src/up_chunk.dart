@@ -99,9 +99,8 @@ class UpChunk {
   }
 
   Future<void> startUpload() async {
-    if (isPaused) return;
-
     while (chunks.isNotEmpty) {
+      if (isPaused) break;
       try {
         final res = await dio.putUri<void>(
           endPoint,
