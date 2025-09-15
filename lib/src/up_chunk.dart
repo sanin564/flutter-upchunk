@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:cross_file/cross_file.dart';
@@ -6,7 +7,7 @@ import 'package:flutter/widgets.dart';
 import 'package:internet_connection_checker_plus/internet_connection_checker_plus.dart';
 import 'package:mime/mime.dart';
 
-class UpChunk with Resumable {
+class UpChunk {
   UpChunk({
     required this.endPoint,
     required this.file,
@@ -15,6 +16,7 @@ class UpChunk with Resumable {
     this.onError,
     this.onSuccess,
     this.onProgress,
+    this.onRetrying,
   }) : preferredChunkSize = preferredChunkSize * 1024 * 1024;
 
   final Uri endPoint;
@@ -30,9 +32,13 @@ class UpChunk with Resumable {
 
   final List<Chunk> chunks = [];
 
+  StreamSubscription<InternetStatus>? _netSub;
+  bool isPaused = false;
+
   final void Function(Object error, StackTrace trace)? onError;
   final VoidCallback? onSuccess;
   final ValueChanged<double>? onProgress;
+  final void Function(bool waitingForNetwork)? onRetrying;
 
   Future<void> _initializeValues() async {
     fileSize = await file.length();
@@ -73,11 +79,13 @@ class UpChunk with Resumable {
   }
 
   void _initializeNetworkChecker() {
-    InternetConnection().onStatusChange.listen((status) {
+    _netSub = InternetConnection().onStatusChange.listen((status) {
       if (status == InternetStatus.connected) {
         resume();
+        onRetrying?.call(false);
       } else {
         pause();
+        onRetrying?.call(true);
       }
     });
   }
@@ -119,16 +127,20 @@ class UpChunk with Resumable {
           throw res;
         }
       } catch (error, stackTrace) {
-        if (error is DioException && error.type == DioExceptionType.cancel) {
-          return;
-        }
+        final isCancel = error is DioException && CancelToken.isCancel(error);
+        if (isCancel) return;
 
-        if (!chunks.first.isDirty) {
-          await chunks.first.setupRetry();
-        } else {
+        final failed =
+            error is Response &&
+            !Helpers.tempErrorCodes.contains(error.statusCode);
+
+        if (chunks.first.isDirty || failed) {
           _handleError(error, stackTrace);
           return;
         }
+
+        onRetrying?.call(false);
+        await chunks.first.setupRetry();
       }
     }
 
@@ -143,24 +155,30 @@ class UpChunk with Resumable {
     }
   }
 
-  @override
   void pause() {
-    super.pause();
-
     if (isPaused) return;
 
+    isPaused = true;
     cancelToken?.cancel();
     cancelToken = null;
   }
 
-  @override
   void resume() {
-    super.resume();
-
     if (!isPaused) return;
 
+    isPaused = false;
     cancelToken = CancelToken();
     startUpload();
+  }
+
+  void dispose() {
+    pause();
+
+    try {
+      dio.close(force: true);
+      _netSub?.cancel();
+      _netSub = null;
+    } catch (_) {}
   }
 }
 
@@ -188,24 +206,8 @@ class Helpers {
   Helpers._();
 
   static const successCodes = [200, 201, 202, 204, 308];
+  static const tempErrorCodes = [408, 502, 503, 504];
+
   static const defaultContentType = 'application/octet-stream';
   static const contentRangeHeader = 'content-range';
-}
-
-mixin Resumable {
-  bool isPaused = false;
-
-  @mustCallSuper
-  void pause() {
-    if (isPaused) return;
-
-    isPaused = true;
-  }
-
-  @mustCallSuper
-  void resume() {
-    if (!isPaused) return;
-
-    isPaused = false;
-  }
 }
