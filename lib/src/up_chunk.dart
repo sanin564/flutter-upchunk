@@ -24,16 +24,16 @@ class UpChunk {
   final int preferredChunkSize;
   final int maxRetries;
 
-  late final Dio dio;
-  late final int fileSize;
-  late final int numberOfChunks;
-  late final String? mimeType;
-  CancelToken? cancelToken;
+  late final Dio _dio;
+  late final int _fileSize;
+  late final int _numberOfChunks;
+  late final String? _mimeType;
+  CancelToken? _cancelToken;
 
-  final List<Chunk> chunks = [];
+  final List<Chunk> _chunks = [];
 
   StreamSubscription<InternetStatus>? _netSub;
-  bool isPaused = false;
+  bool _isPaused = false;
 
   final void Function(Object error, StackTrace trace)? onError;
   final VoidCallback? onSuccess;
@@ -41,34 +41,34 @@ class UpChunk {
   final void Function(bool waitingForNetwork)? onRetrying;
 
   Future<void> _initializeValues() async {
-    fileSize = await file.length();
-    numberOfChunks = (fileSize / preferredChunkSize).ceil();
+    _fileSize = await file.length();
+    _numberOfChunks = (_fileSize / preferredChunkSize).ceil();
   }
 
   Future<void> _initializeMimeType() async {
     try {
-      mimeType = lookupMimeType(file.path);
+      _mimeType = lookupMimeType(file.path);
     } catch (_) {
-      mimeType = null;
+      _mimeType = null;
     }
   }
 
   void _initializeChunks() {
-    for (int i = 0; i < numberOfChunks; i++) {
+    for (int i = 0; i < _numberOfChunks; i++) {
       final start = i * preferredChunkSize;
       final end =
-          (start + preferredChunkSize <= fileSize)
+          (start + preferredChunkSize <= _fileSize)
               ? start + preferredChunkSize
-              : fileSize;
+              : _fileSize;
 
-      chunks.add(Chunk(this, start: start, end: end));
+      _chunks.add(Chunk(this, start: start, end: end));
     }
   }
 
   void _initializeDio() {
-    cancelToken = CancelToken();
+    _cancelToken = CancelToken();
 
-    dio = Dio(
+    _dio = Dio(
       BaseOptions(
         connectTimeout: const Duration(seconds: 10),
         receiveTimeout: const Duration(seconds: 5),
@@ -99,29 +99,30 @@ class UpChunk {
   }
 
   Future<void> startUpload() async {
-    while (chunks.isNotEmpty) {
-      if (isPaused) break;
+    while (_chunks.isNotEmpty) {
+      if (_isPaused) break;
       try {
-        final res = await dio.putUri<void>(
+        final res = await _dio.putUri<void>(
           endPoint,
-          data: chunks.first.data,
+          data: _chunks.first.data,
           options: Options(
             headers: {
-              Headers.contentLengthHeader: chunks.first.size,
-              Headers.contentTypeHeader: mimeType ?? Helpers.defaultContentType,
+              Headers.contentLengthHeader: _chunks.first.size,
+              Headers.contentTypeHeader:
+                  _mimeType ?? Helpers.defaultContentType,
               Helpers.contentRangeHeader:
-                  'bytes ${chunks.first.start}-${chunks.first.end - 1}/$fileSize',
+                  'bytes ${_chunks.first.start}-${_chunks.first.end - 1}/$_fileSize',
             },
           ),
           onSendProgress: (sent, _) {
-            final pending = chunks.map((e) => e.size).fold(0, (i, e) => i + e);
-            final progress = 1 - ((pending - sent) / fileSize);
+            final pending = _chunks.map((e) => e.size).fold(0, (i, e) => i + e);
+            final progress = 1 - ((pending - sent) / _fileSize);
             onProgress?.call(progress * 100);
           },
-          cancelToken: cancelToken,
+          cancelToken: _cancelToken,
         );
         if (Helpers.successCodes.contains(res.statusCode)) {
-          chunks.removeAt(0);
+          _chunks.removeAt(0);
         } else {
           throw res;
         }
@@ -133,17 +134,17 @@ class UpChunk {
             error is Response &&
             !Helpers.tempErrorCodes.contains(error.statusCode);
 
-        if (chunks.first.isDirty || failed) {
+        if (_chunks.first.isDirty || failed) {
           _handleError(error, stackTrace);
           return;
         }
 
         onRetrying?.call(false);
-        await chunks.first.setupRetry();
+        await _chunks.first.setupRetry();
       }
     }
 
-    if (chunks.isEmpty) onSuccess?.call();
+    if (_chunks.isEmpty) onSuccess?.call();
   }
 
   void _handleError(Object error, StackTrace stack) {
@@ -155,18 +156,18 @@ class UpChunk {
   }
 
   void pause() {
-    if (isPaused) return;
+    if (_isPaused) return;
 
-    isPaused = true;
-    cancelToken?.cancel();
-    cancelToken = null;
+    _isPaused = true;
+    _cancelToken?.cancel();
+    _cancelToken = null;
   }
 
   void resume() {
-    if (!isPaused) return;
+    if (!_isPaused) return;
 
-    isPaused = false;
-    cancelToken = CancelToken();
+    _isPaused = false;
+    _cancelToken = CancelToken();
     startUpload();
   }
 
@@ -174,10 +175,15 @@ class UpChunk {
     pause();
 
     try {
-      dio.close(force: true);
+      _dio.close(force: true);
       _netSub?.cancel();
       _netSub = null;
     } catch (_) {}
+  }
+
+  void cancel() {
+    dispose();
+    onError?.call(CancelledByUser(), StackTrace.current);
   }
 }
 
@@ -210,3 +216,5 @@ class Helpers {
   static const defaultContentType = 'application/octet-stream';
   static const contentRangeHeader = 'content-range';
 }
+
+class CancelledByUser implements Exception {}
