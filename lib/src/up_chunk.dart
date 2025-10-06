@@ -35,6 +35,9 @@ class UpChunk {
   StreamSubscription<InternetStatus>? _netSub;
   bool _isPaused = false;
 
+  InternetStatus? lastStatus;
+  bool isFirstStatus = true;
+
   final void Function(Object error, StackTrace trace)? onError;
   final VoidCallback? onSuccess;
   final ValueChanged<double>? onProgress;
@@ -70,8 +73,8 @@ class UpChunk {
 
     _dio = Dio(
       BaseOptions(
-        connectTimeout: const Duration(seconds: 10),
-        receiveTimeout: const Duration(seconds: 10),
+        connectTimeout: const Duration(seconds: 20),
+        receiveTimeout: const Duration(seconds: 20),
         validateStatus: (_) => true,
         followRedirects: false,
       ),
@@ -79,7 +82,32 @@ class UpChunk {
   }
 
   void _initializeNetworkChecker() {
-    _netSub = InternetConnection().onStatusChange.listen((status) {
+    _netSub = InternetConnection.createInstance(
+      checkInterval: const Duration(seconds: 20),
+      customCheckOptions: [
+        InternetCheckOption(
+          uri: Uri.parse("https://www.mux.com/"),
+          timeout: const Duration(seconds: 20),
+        ),
+        InternetCheckOption(
+          uri: Uri.parse("https://one.one.one.one"),
+          timeout: const Duration(seconds: 20),
+        ),
+        InternetCheckOption(
+          uri: Uri.parse("https://jsonplaceholder.typicode.com/todos/1"),
+          timeout: const Duration(seconds: 20),
+        ),
+      ],
+    ).onStatusChange.listen((status) {
+      if (isFirstStatus) {
+        lastStatus = status;
+        isFirstStatus = false;
+        return;
+      }
+
+      if (lastStatus == status) return;
+      lastStatus = status;
+
       if (status == InternetStatus.connected) {
         resume();
         onRetrying?.call(false);
@@ -101,6 +129,7 @@ class UpChunk {
   Future<void> startUpload() async {
     while (_chunks.isNotEmpty) {
       if (_isPaused) break;
+
       try {
         final res = await _dio.putUri<void>(
           endPoint,
@@ -113,8 +142,9 @@ class UpChunk {
               Helpers.contentRangeHeader:
                   'bytes ${_chunks.first.start}-${_chunks.first.end - 1}/$_fileSize',
             },
+            receiveTimeout: const Duration(seconds: 20),
           ),
-          onSendProgress: (sent, _) {
+          onSendProgress: (sent, total) {
             final pending = _chunks.map((e) => e.size).fold(0, (i, e) => i + e);
             final progress = 1 - ((pending - sent) / _fileSize);
             onProgress?.call(progress * 100);
