@@ -73,8 +73,8 @@ class UpChunk {
 
     _dio = Dio(
       BaseOptions(
-        connectTimeout: const Duration(seconds: 20),
-        receiveTimeout: const Duration(seconds: 20),
+        connectTimeout: const Duration(seconds: 30),
+        receiveTimeout: const Duration(seconds: 30),
         validateStatus: (_) => true,
         followRedirects: false,
       ),
@@ -87,15 +87,15 @@ class UpChunk {
       customCheckOptions: [
         InternetCheckOption(
           uri: Uri.parse("https://www.mux.com/"),
-          timeout: const Duration(seconds: 20),
+          timeout: const Duration(seconds: 30),
         ),
         InternetCheckOption(
           uri: Uri.parse("https://one.one.one.one"),
-          timeout: const Duration(seconds: 20),
+          timeout: const Duration(seconds: 30),
         ),
         InternetCheckOption(
           uri: Uri.parse("https://jsonplaceholder.typicode.com/todos/1"),
-          timeout: const Duration(seconds: 20),
+          timeout: const Duration(seconds: 30),
         ),
       ],
     ).onStatusChange.listen((status) {
@@ -142,7 +142,7 @@ class UpChunk {
               Helpers.contentRangeHeader:
                   'bytes ${_chunks.first.start}-${_chunks.first.end - 1}/$_fileSize',
             },
-            receiveTimeout: const Duration(seconds: 20),
+            receiveTimeout: const Duration(seconds: 30),
           ),
           onSendProgress: (sent, total) {
             final pending = _chunks.map((e) => e.size).fold(0, (i, e) => i + e);
@@ -241,7 +241,7 @@ class Helpers {
   Helpers._();
 
   static const successCodes = [200, 201, 202, 204, 308];
-  static const tempErrorCodes = [408, 502, 503, 504];
+  static const tempErrorCodes = [408, 409, 502, 503, 504];
 
   static const defaultContentType = 'application/octet-stream';
   static const contentRangeHeader = 'content-range';
